@@ -1,3 +1,5 @@
+# Note run this with the volume that contain the source code:
+# docker run -u $(id -u):$(id -g) --rm --gpus all --network host -v ${PWD}:/workspace --name builder ha4detr-builder
 FROM nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
 
 # Install Python 3.11
@@ -15,12 +17,10 @@ ENV PATH="/opt/venv/bin:${PATH}"
 RUN pip install --upgrade pip setuptools wheel build
 
 # Install PyTorch 2.8 (CUDA 12.4)
-RUN pip install torch==2.8.0 #--index-url https://download.pytorch.org/whl/cu124
+RUN pip install torch==2.8.0
 
 # Copy your project
 WORKDIR /workspace
 
-# Build the wheel
-#RUN python -m build
 
 

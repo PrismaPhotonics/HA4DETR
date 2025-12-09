@@ -172,3 +172,4 @@ old
 towers_*.json
 *.zip
 remotes.json
+*venv

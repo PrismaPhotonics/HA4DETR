@@ -42,6 +42,33 @@ Compared to the widely-used SciPy's CPU-based `linear_sum_assignment`, this impl
 > Tested on: NVIDIA RTX 4090 GPU
 
 ---
+## Building
+You can use the existing docker file here to build a Linux version to without the need to install all of nvidia dependencies as well as torch.
+This dockerfile build for Linux only as docker with GPU is only supported for such OS.
+>Note that with MacOS it would not work regardless as it lack CUDA support.
+To run the build with the docker file:
+1. First build the docker image:
+```bash
+docker build --network host -t ha4detr-builder -f Dockerfile.builder .
+```
+2. Create the package:
+> Note that we are using the sources from this directory into the docker image, and assuming you're building from the git repo current directory:
+```bash
+docker run --rm \
+  --gpus all \
+  -u $(id -u):$(id -g) \
+  -v "$(pwd)":/workspace \
+  -w /workspace \
+  ha4detr-build \
+  bash -c "python -m build"
+```
+However it is better to let the script `build_with_docker.sh` do the work for you.
+The script will ensure that:
+- You have the docker image ready.
+- Clean old version of the package.
+- build the package inside the docker image.
+- Rename the package based on the current git tag.
+
 
 ## ⚙️ How to Use
 
