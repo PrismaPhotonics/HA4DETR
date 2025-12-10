@@ -46,6 +46,12 @@ Compared to the widely-used SciPy's CPU-based `linear_sum_assignment`, this impl
 You can use the existing docker file here to build a Linux version to without the need to install all of nvidia dependencies as well as torch.
 This dockerfile build for Linux only as docker with GPU is only supported for such OS.
 >Note that with MacOS it would not work regardless as it lack CUDA support.
+>Make sure that you have GPU on you system:
+```cmd
+nvidia-smi
+```
+
+### Linux Build
 To run the build with the docker file:
 1. First build the docker image:
 ```bash
@@ -68,6 +74,49 @@ The script will ensure that:
 - Clean old version of the package.
 - build the package inside the docker image.
 - Rename the package based on the current git tag.
+
+### Windows Build
+Note:
+- You would need to have Nvidia CUDA tool kit version 12.6 or newer to build on Windows.
+- You would need to have Visual Studio version 2022 or newer to build.
+To build this with `windows` you would need to:
+- Install the `Nvidia` CUDA development toolkit from [Nvidia web site](archive).
+- Have a building environment for c++ builds - i.e. Visual Studio. Follow this [link](https://aka.ms/vs/17/release/vs_BuildTools.exe), and then [this getting started](https://visualstudio.microsoft.com/vs/getting-started/).
+- Install [Pyenv](https://github.com/pyenv-win/pyenv-win?tab=readme-ov-file#installation), and setup `python 3.11` as the global default python version.
+- Use the `Developer Command Prompt for VS 20<version>`
+The MSVC environment must be pre-activated.
+>You MUST NOT run the build from plain CMD or PowerShell.
+Steps:
+  Click Start
+  Search:
+    "x64 Native Tools Command Prompt for VS 2022"
+    (or "Developer Command Prompt for VS 2022")
+  Open it
+- Setup python virtual environment with:
+```cmd
+python -m venv <my venv name>
+<my venv name>\Scripts\activate
+```
+- Install pytoch with CUDA support:
+```cmd
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+```
+- Make sure that you have the following env variables sets:
+> CUDA_HOME - should point to `C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.0`
+> The nvcc is working: 
+```cmd
+nvcc --version
+```
+- setup the required environment variables:
+```cmd
+set DISTUTILS_USE_SDK=1
+set MSSdk=1
+```
+- Build the package with:
+
+```cmd
+pip wheel . --no-build-isolation -w dist
+```
 
 
 ## ⚙️ How to Use
