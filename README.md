@@ -77,7 +77,7 @@ The script will ensure that:
 
 ### Windows Build
 Note:
-- You would need to have Nvidia CUDA tool kit version 12.6 or newer to build on Windows.
+- You would need to have Nvidia CUDA tool kit version 12.1 or 12.0 to build on Windows.
 - You would need to have Visual Studio version 2022 or newer to build.
 To build this with `windows` you would need to:
 - Install the `Nvidia` CUDA development toolkit from [Nvidia web site](archive).
@@ -99,8 +99,13 @@ python -m venv <my venv name>
 ```
 - Install pytoch with CUDA support:
 ```cmd
-pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+pip install torch==2.2.0+cu121 --index-url https://download.pytorch.org/whl/cu121
 ```
+- Install build dependencies:
+```cmd
+pip install wheel build
+```
+
 - Make sure that you have the following env variables sets:
 > CUDA_HOME - should point to `C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.0`
 > The nvcc is working: 
