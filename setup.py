@@ -25,6 +25,91 @@ SRC_CPU = SRC_BASE / "cpu"
 SRC_CUDA = SRC_BASE / "cuda"
 
 
+def _verify_cuda_environment():
+    """
+    Ensures we only attempt to build on:
+      - Windows or Linux
+      - PyTorch with CUDA support
+      - CUDA toolkit installed and visible to PyTorch
+    """
+
+    # --- Allowed platforms --------------------------------------------------
+    system = platform.system()
+    if system not in ("Windows", "Linux"):
+        print(
+            f"Unsupported platform '{system}' to build this on with CUDA support. "
+            f"ha4detr only supports building on Windows or Linux with CUDA."
+        )
+        return True  # skip the reset we don't care.
+
+    # --- Check PyTorch CUDA availability -----------------------------------
+    try:
+        import torch
+        from torch.utils.cpp_extension import CUDA_HOME
+    except ImportError:
+        print("PyTorch must be installed BEFORE building ha4detr.")
+        return False
+
+    if not torch.cuda.is_available():
+        print(
+            "PyTorch reports that CUDA is NOT available on this system. "
+            "Cannot build CUDA extension."
+        )
+        return False
+
+    if not torch.backends.cuda.is_built():
+        print(
+            "Your PyTorch build was compiled WITHOUT CUDA. "
+            "Install a CUDA-enabled PyTorch distribution."
+        )
+        return False
+
+    torch_cuda = torch.version.cuda
+    if not torch_cuda:
+        print(
+            "Torch does not expose a valid CUDA version (torch.version.cuda). "
+            "Cannot safely build."
+        )
+        return False
+
+    # --- Check system CUDA installation ------------------------------------
+    cuda_home = os.environ.get("CUDA_HOME") or os.environ.get("CUDA_PATH") or CUDA_HOME
+
+    if not cuda_home:
+        print(
+            "CUDA_HOME / CUDA_PATH is not set. "
+            "Please set it to your local CUDA toolkit path."
+        )
+        return False
+
+    nvcc = Path(cuda_home) / "bin" / "nvcc"
+    if not nvcc.exists():
+        print(
+            f"nvcc not found at expected path: {nvcc}\n"
+            "Your CUDA installation is incomplete or incorrect."
+        )
+        return False
+
+    # --- Optional: check major version compatibility -----------------------
+    # torch.version.cuda is like "12.1" or "12.6"
+    torch_major = torch_cuda.split(".")[0]
+    try:
+        system_nvcc_output = os.popen(f'"{nvcc}" --version').read().lower()
+    except Exception:
+        system_nvcc_output = ""
+
+    if torch_major not in system_nvcc_output:
+        print("*************************************************************")
+        print("* WARNING: CUDA version mismatch between PyTorch and system *")
+        print("* This may still work, but is not guaranteed.               *")
+        print("* Torch CUDA:", torch_cuda)
+        print("* nvcc --version output:\n", system_nvcc_output)
+        print("*************************************************************")
+
+    print("CUDA environment OK ✓")
+    return True
+
+
 def get_extensions():
     from torch.utils.cpp_extension import (
         CUDAExtension,
