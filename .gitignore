@@ -173,3 +173,6 @@ towers_*.json
 *.zip
 remotes.json
 *venv
+*.updated
+*from_win
+*.save*

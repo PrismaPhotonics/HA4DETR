@@ -123,6 +123,37 @@ set MSSdk=1
 pip wheel . --no-build-isolation -w dist
 ```
 
+#### Build Automation
+While we cannot build on windows machine with fully isolated environment like we can using dockers on Linux, we have a build script for windows that can automated some of the build environment for us.
+To execute this script with all default:
+```cmd
+./scripts/build_windows.ps1
+```
+The script has these options and defaults:
+- Python version (≥3.11)
+- CUDA toolkit version (≥12.0, and matches Torch)
+- Visual Studio toolchain version (default VS2019)
+- PyTorch version (default 2.2.0+cu121)
+- Creates a temporary virtual environment and cleans it afterwards
+- Produces a final wheel inside dist/
+- Provides command-line options to customize behavior
+Note that we assuming that you have the correct python version - you can use `pyenv` and set it to `python 3.11`, but you do need to install VS version 2019 or 2022 and you do need to install CUDA toolkit 12 to 12.3 for this to work.
+##### Examples:
+- Running with custom `pytorch`
+```cmd
+./scripts/build_windows.ps1 -TorchSpec "torch==2.5.0+cu124 --index-url https://download.pytorch.org/whl/cu124"
+```
+- Running with `python 3.12`
+```cmd
+./scripts/build_windows.ps1 -PythonVersion 3.12
+```
+- Doing virtual env cleanup at the end:
+```cmd
+./scripts/build_windows.ps1 -Clean
+```
+> Note that you can combine all of the above.
+
+
 
 ## ⚙️ How to Use
 
