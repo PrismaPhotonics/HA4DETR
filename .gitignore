@@ -176,3 +176,4 @@ remotes.json
 *.updated
 *from_win
 *.save*
+build_env*

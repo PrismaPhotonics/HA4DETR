@@ -8,22 +8,16 @@ from pathlib import Path
 
 _IS_WINDOWS_BUILD = platform.system() == "Windows"
 
-
-def rel(path: Path) -> str:
-    s = "./" + str(path.relative_to(ROOT)).replace("\\", "/")
-    return s
-
-
-if _IS_WINDOWS_BUILD:
-    ROOT = Path(__file__).parent  # Path(__file__).parent.resolve()
-else:
-    ROOT = Path(__file__).parent
+ROOT = Path(__file__).parent
 
 SRC = ROOT / "src"
 SRC_BASE = SRC / "ha4detr"
 SRC_CPU = SRC_BASE / "cpu"
 SRC_CUDA = SRC_BASE / "cuda"
 
+
+def rel(path: str) -> str:
+    return os.path.relpath(path, ROOT)
 
 def _verify_cuda_environment():
     """
@@ -41,7 +35,6 @@ def _verify_cuda_environment():
             f"ha4detr only supports building on Windows or Linux with CUDA."
         )
         return True  # skip the reset we don't care.
-
     # --- Check PyTorch CUDA availability -----------------------------------
     try:
         import torch
@@ -81,13 +74,13 @@ def _verify_cuda_environment():
             "Please set it to your local CUDA toolkit path."
         )
         return False
-
-    nvcc = Path(cuda_home) / "bin" / "nvcc"
+    exe_postfix = "nvcc.exe" if _IS_WINDOWS_BUILD else "nvcc"
+    nvcc = Path(cuda_home) / "bin" / exe_postfix
     if not nvcc.exists():
         print(
-            f"nvcc not found at expected path: {nvcc}\n"
-            "Your CUDA installation is incomplete or incorrect."
+            f"nvcc not found at expected path: {nvcc}"
         )
+        print("Your CUDA installation is incomplete or incorrect.")
         return False
 
     # --- Optional: check major version compatibility -----------------------
@@ -103,10 +96,10 @@ def _verify_cuda_environment():
         print("* WARNING: CUDA version mismatch between PyTorch and system *")
         print("* This may still work, but is not guaranteed.               *")
         print("* Torch CUDA:", torch_cuda)
-        print("* nvcc --version output:\n", system_nvcc_output)
+        print("* nvcc --version output:", system_nvcc_output)
         print("*************************************************************")
 
-    print("CUDA environment OK ✓")
+    print("CUDA environment OK")
     return True
 
 
@@ -119,8 +112,10 @@ def get_extensions():
         CUDA_HOME,
     )
 
-    cpu_source_paths = [str(p) for p in SRC_CPU.glob("*.cpp")]
-    cuda_source_paths = [str(p) for p in SRC_CUDA.glob("*.cu")]
+    assert _verify_cuda_environment(), "You cannot run this build on this system - you would need to update it to match requirement!"
+
+    cpu_source_paths = [rel(p) for p in SRC_CPU.glob("*.cpp")]
+    cuda_source_paths = [rel(p) for p in SRC_CUDA.glob("*.cu")]
     all_source_paths = cpu_source_paths + cuda_source_paths
 
     def _debug_print():
@@ -136,7 +131,8 @@ def get_extensions():
     def _get_linux_settings():
         local_includes = str(SRC_BASE)
         # 2. Collect CUDA sources (from the new 'cuda' subdirectory)
-        cuda_sources = [str(Path(p).relative_to(ROOT)) for p in all_source_paths]
+        # str(Path(p).relative_to(ROOT))
+        cuda_sources = [p for p in all_source_paths]
         include_dirs = include_paths()  # torch include directories
         library_dirs = library_paths(device_type="cuda")  # torch/lib directories
         rpath = "-Wl,-rpath,$ORIGIN/../torch/lib"
@@ -145,6 +141,9 @@ def get_extensions():
             "cxx": ["-D_GLIBCXX_USE_CXX11_ABI=1", "-std=c++17"],
             "nvcc": ["-D_GLIBCXX_USE_CXX11_ABI=1", "-std=c++17"],
         }
+        print("="*40)
+        print(f"{cuda_sources=}")
+        print("="*40)
         return [
             CUDAExtension(
                 name="ha4detr._hungarian",

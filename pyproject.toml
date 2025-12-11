@@ -3,7 +3,8 @@ requires = [
     "setuptools==69.5.1",
     "setuptools_scm[toml]==8.1.0",
     "wheel",
-    "numpy",
+    "numpy==2.0.0; platform_system == 'Windows'",
+    "numpy>=2.0.0; platform_system != 'Windows'",
     "torch"  # <-- IMPORTANT
 ]
 build-backend = "setuptools.build_meta"
