@@ -1,0 +1,112 @@
+[build-system]
+requires = [
+    "setuptools==69.5.1",
+    "setuptools_scm[toml]==8.1.0",
+    "wheel",
+    "numpy",
+    "torch"  # <-- IMPORTANT
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ha4detr"
+description = "This repository provides an efficient **CUDA/C++ extension** of the Hungarian Algorithm, seamlessly integrated with PyTorch"
+readme = "README.md"
+license = {text = "Copyright"}
+authors = [{name = "PrismaPhotonics", email = "some.one@prismaphotonics.com"}]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Development Status :: 1 - Planning"
+]
+requires-python = ">=3.8"
+dynamic = ["version"]
+
+dependencies = [
+  "torch>=1.11.0; python_version < '3.9'",
+  "torch>=2.0.0; python_version >= '3.9'",
+  "scipy",
+  "pydantic",
+  "numpy"
+]
+
+[project.urls]
+Issues = "https://github.com/PrismaPhotonics/ha4detr/issues"
+Source = "https://github.com/PrismaPhotonics/ha4detr"
+
+[project.optional-dependencies]
+# optional dependencies when you want to install the runner - which require
+# the use of torch and numpy - the reason they are optional is that
+# this are large packages, that we don't always want to install
+tests = [
+  "ha4detr",  # running tests requires the runner
+  "pytest==8.3.3",
+  "pytest-sugar==1.0.0",
+  "pytest-cov==3.0.0",
+  "pytest-mock==3.8.2",
+  "pytest-timeout",
+]
+
+[tool.setuptools_scm]
+version_file = "src/ha4detr/_version.py"
+fallback_version = "0.0.1"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false
+exclude = ["ha4detr.cpu", "ha4detr.cuda"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+
+[tool.coverage.run]
+branch = true
+source = ["ha4detr", "tests"]
+
+[tool.coverage.paths]
+source = ["src", "*/site-packages"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+  "pragma: no cover",
+  "if __name__ == .__main__.:",
+  "if typing.TYPE_CHECKING:",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "raise AssertionError",
+  "@overload"
+]
+
+[tool.codespell]
+ignore-words-list = "codeartifact,pyproject,testcontainers,prismaphotonics,awsapps,pydantic"
+
+[tool.ruff]
+output-format = "full"
+show-fixes = true
+
+[tool.ruff.lint]
+ignore = [
+  "S101",  # assert
+  "PLR2004",  # magic-value-comparison
+  "PLW2901",  # redefined-loop-name
+  "ISC001",  # single-line-implicit-string-concatenation
+  "SIM105",  # suppressible-exception
+  "SIM108",  # if-else-block-instead-of-if-exp
+  "D213"  # multi-line-summary-second-line
+]
+select = ["ALL"]
+
+[tool.ruff.lint.per-file-ignores]
+"noxfile.py" = ["D", "PTH"]
+"tests/**" = ["S", "ARG001", "ARG002", "ANN"]
+
+[tool.ruff.lint.flake8-type-checking]
+strict = true
+
+[tool.ruff.lint.isort]
+known-first-party = ["ha4detr"]

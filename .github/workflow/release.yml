@@ -1,0 +1,58 @@
+name: Build wheels
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build-wheel-linux:
+    name: Build Wheel in Docker For Linux
+    runs-on: [self-hosted, gpu]   # your GPU runner
+    permissions:
+      contents: read
+      actions: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needed so git describe can find tags
+
+      - name: Build package via Docker
+        run: |
+          ./build_with_docker.sh
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ha4detr-wheel
+          path: dist/*.whl
+          retention-days: 30
+
+  windows:
+    # This assumes you eventually wire this to your EC2/SSM-based builder
+    runs-on: windows-latest  # OR your own Windows runner when ready
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build dependencies
+        run: |
+          pip install --upgrade pip
+          pip install build
+
+      - name: Build wheel
+        run: |
+          python -m build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ha4detr-windows
+          path: dist/*.whl

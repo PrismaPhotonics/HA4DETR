@@ -1,0 +1,57 @@
+name: "AWS CodeArtifact Token PyPi URL"
+description: "Fetch AWS CodeArtifact token and compose PyPi URL"
+
+inputs:
+  domain:
+    description: "CodeArtifact domain"
+    required: true
+  domain_owner:
+    description: "AWS account number (domain owner)"
+    required: true
+  repository:
+    description: "CodeArtifact repository name"
+    required: true
+  region:
+    description: "AWS region"
+    required: true
+
+outputs:
+  pypi_url:
+    description: "Constructed CodeArtifact URL with token"
+    value: ${{ steps.fetch_linux.outputs.pypi_url }}
+  pypi_url_windows:
+    description: "Constructed CodeArtifact URL with token (Windows)"
+    value: ${{ steps.fetch_windows.outputs.pypi_url }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Fetch token (Linux)
+      if: runner.os != 'Windows'
+      shell: bash
+      id: fetch_linux
+      run: |
+        echo "Fetching CodeArtifact token..."
+        TOKEN=$(aws codeartifact get-authorization-token \
+          --domain "${{ inputs.domain }}" \
+          --region "${{ inputs.region }}" \
+          --query authorizationToken \
+          --output text)
+        URL="https://aws:${TOKEN}@${{ inputs.domain }}-${{ inputs.domain_owner }}.d.codeartifact.${{ inputs.region }}.amazonaws.com/pypi/${{ inputs.repository }}/simple/"
+        echo "pypi_url=$URL" >> $GITHUB_OUTPUT
+
+    - name: Fetch token (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      id: fetch_windows
+      run: |
+        Write-Output "Fetching CodeArtifact token..."
+        $TOKEN = aws codeartifact get-authorization-token `
+            --domain "${{ inputs.domain }}" `
+            --region "${{ inputs.region }}" `
+            --query authorizationToken `
+            --output text
+        Add-Type -AssemblyName System.Web
+        $ENCODED_TOKEN = [System.Web.HttpUtility]::UrlEncode($TOKEN)
+        $URL = "https://aws:$ENCODED_TOKEN@${{ inputs.domain }}-${{ inputs.domain_owner }}.d.codeartifact.${{ inputs.region }}.amazonaws.com/pypi/${{ inputs.repository }}/simple/"
+        Add-Content -Path $env:GITHUB_OUTPUT -Value "pypi_url=$URL"

@@ -1,0 +1,7 @@
+include LICENSE
+include README.md
+# Include the header file in the new location
+include src/ha4detr/hungarian_launcher.h
+# Include all C++ and CUDA source files
+recursive-include src/ha4detr *.cpp *.cu
+global-include *.cu *.h *.cpp
