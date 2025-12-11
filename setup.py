@@ -136,7 +136,7 @@ def get_extensions():
     def _get_linux_settings():
         local_includes = str(SRC_BASE)
         # 2. Collect CUDA sources (from the new 'cuda' subdirectory)
-        cuda_sources = [str(p.relative_to(ROOT)) for p in all_source_paths]
+        cuda_sources = [str(Path(p).relative_to(ROOT)) for p in all_source_paths]
         include_dirs = include_paths()  # torch include directories
         library_dirs = library_paths(device_type="cuda")  # torch/lib directories
         rpath = "-Wl,-rpath,$ORIGIN/../torch/lib"
