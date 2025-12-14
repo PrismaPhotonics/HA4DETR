@@ -19,7 +19,7 @@ else
 fi
 
 COMMIT_HASH="$(git rev-parse --short HEAD)"
-VERSION="${LATEST_TAG}+${COMMIT_HASH}"
+VERSION="${LATEST_TAG}"
 
 echo "📦 Version string: $VERSION"
 echo ""

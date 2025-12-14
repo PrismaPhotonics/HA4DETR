@@ -8,7 +8,7 @@ on:
 jobs:
   build-wheel-linux:
     name: Build Wheel in Docker For Linux
-    runs-on: [self-hosted, gpu]   # your GPU runner
+    runs-on: [self-hosted-gpu-ha4detr]   # your GPU runner
     permissions:
       contents: read
       actions: write
@@ -31,28 +31,83 @@ jobs:
           path: dist/*.whl
           retention-days: 30
 
-  windows:
-    # This assumes you eventually wire this to your EC2/SSM-based builder
-    runs-on: windows-latest  # OR your own Windows runner when ready
+  windows-wheel:
+    # Build the wheel for the package on AWS Windows EC2 with GPU
+    name: Build Windows CUDA Wheel on EC2
+    runs-on: ubuntu-22.04  # Controller runner — not Windows!
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install build dependencies
+      - name: Install AWS CLI
         run: |
-          pip install --upgrade pip
-          pip install build
+          sudo apt-get update
+          sudo apt-get install -y awscli jq sshpass
 
-      - name: Build wheel
+      - name: Launch EC2 Instance
+        id: start_ec2
         run: |
-          python -m build
+          INSTANCE_ID=$(aws ec2 run-instances \
+              --image-id ${{ secrets.EC2_WINDOWS_AMI }} \
+              --instance-type ${{ secrets.EC2_INSTANCE_TYPE }} \
+              --key-name ha4detr-key \
+              --security-group-ids ${{ secrets.EC2_SG_ID }} \
+              --subnet-id ${{ secrets.EC2_SUBNET_ID }} \
+              --query "Instances[0].InstanceId" --output text)
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+          echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+          echo "Launched EC2 instance $INSTANCE_ID"
+
+      - name: Wait for instance ready
+        id: wait_ec2
+        run: |
+          INSTANCE_ID=${{ steps.start_ec2.outputs.instance_id }}
+          echo "Waiting for EC2 instance $INSTANCE_ID to be running..."
+
+          aws ec2 wait instance-status-ok --instance-ids "$INSTANCE_ID"
+
+          # Get public IP
+          IP=$(aws ec2 describe-instances \
+              --instance-ids "$INSTANCE_ID" \
+              --query "Reservations[0].Instances[0].PublicIpAddress" \
+              --output text)
+
+          echo "public_ip=$IP" >> $GITHUB_OUTPUT
+          echo "EC2 Public IP: $IP"
+
+      - name: Copy sources to Windows EC2
+        run: |
+          IP=${{ steps.wait_ec2.outputs.public_ip }}
+          mkdir -p /tmp/ssh
+          echo "${{ secrets.EC2_WINDOWS_KEY }}" > /tmp/ssh/key
+          chmod 600 /tmp/ssh/key
+
+          rsync -av -e "ssh -o StrictHostKeyChecking=no -i /tmp/ssh/key" \
+              ./ ${{ secrets.EC2_WINDOWS_USER }}@${IP}:/C:/ha4detr-src/
+
+      - name: Run Windows build script remotely
+        run: |
+          IP=${{ steps.wait_ec2.outputs.public_ip }}
+          ssh -o StrictHostKeyChecking=no -i /tmp/ssh/key \
+              ${{ secrets.EC2_WINDOWS_USER }}@$IP \
+              'powershell -File C:\ha4detr-src\.github\build_windows.ps1'
+
+      - name: Copy back built Windows wheels
+        run: |
+          IP=${{ steps.wait_ec2.outputs.public_ip }}
+          rsync -av -e "ssh -o StrictHostKeyChecking=no -i /tmp/ssh/key" \
+              ${{ secrets.EC2_WINDOWS_USER }}@$IP:/C:/ha4detr-src/dist/ windows-dist/
+
+      - name: Upload Windows wheels
+        uses: actions/upload-artifact@v3
         with:
-          name: ha4detr-windows
-          path: dist/*.whl
+          name: windows-wheels
+          path: windows-dist/*.whl
+
+      - name: Terminate EC2 Instance
+        if: always()
+        run: |
+          aws ec2 terminate-instances \
+            --instance-ids ${{ steps.start_ec2.outputs.instance_id }}
+          echo "Terminated EC2 instance."
