@@ -3,9 +3,15 @@ requires = [
     "setuptools==69.5.1",
     "setuptools_scm[toml]==8.1.0",
     "wheel",
-    "numpy==2.0.0; platform_system == 'Windows'",
-    "numpy>=2.0.0; platform_system != 'Windows'",
-    "torch"  # <-- IMPORTANT
+    "numpy>=2.0.0; python_version >= '3.9'"
+    'numpy>=1.19.3; python_version < "3.9" and sys_platform != "darwin"',
+    'numpy==1.23.5; python_version < "3.9" and sys_platform == "darwin"',
+    "torch>=1.11.0; python_version < '3.9' and platform_system != 'Windows'",
+    "torch>=2.0.0; python_version >= '3.9' and platform_system != 'Windows'",
+    "torch @ https://download.pytorch.org/whl/cu118/torch-2.0.1%2Bcu118-cp38-cp38-win_amd64.whl ; python_version < '3.9' and platform_system == 'Windows'",
+    "torch @ https://download.pytorch.org/whl/cu118/torch-2.0.1%2Bcu118-cp39-cp39-win_amd64.whl ; python_version == '3.9' and platform_system == 'Windows'",
+    "torch @ https://download.pytorch.org/whl/cu118/torch-2.0.1%2Bcu118-cp310-cp310-win_amd64.whl ; python_version == '3.10' and platform_system == 'Windows'",
+    "torch @ https://download.pytorch.org/whl/cu118/torch-2.0.1%2Bcu118-cp311-cp311-win_amd64.whl ; python_version == '3.11' and platform_system == 'Windows'",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -28,11 +34,17 @@ requires-python = ">=3.8"
 dynamic = ["version"]
 
 dependencies = [
-  "torch>=1.11.0; python_version < '3.9'",
-  "torch>=2.0.0; python_version >= '3.9'",
+  "torch>=1.11.0; python_version < '3.9' and platform_system != 'Windows'",
+  "torch>=2.0.0; python_version >= '3.9' and platform_system != 'Windows'",
+  "torch @ https://download.pytorch.org/whl/cu118/torch-2.0.1%2Bcu118-cp38-cp38-win_amd64.whl ; python_version < '3.9' and platform_system == 'Windows'",
+  "torch @ https://download.pytorch.org/whl/cu118/torch-2.0.1%2Bcu118-cp39-cp39-win_amd64.whl ; python_version == '3.9' and platform_system == 'Windows'",
+  "torch @ https://download.pytorch.org/whl/cu118/torch-2.0.1%2Bcu118-cp310-cp310-win_amd64.whl ; python_version == '3.10' and platform_system == 'Windows'",
+  "torch @ https://download.pytorch.org/whl/cu118/torch-2.0.1%2Bcu118-cp311-cp311-win_amd64.whl ; python_version == '3.11' and platform_system == 'Windows'",
   "scipy",
   "pydantic",
-  "numpy"
+  "numpy>=2.0.0; python_version >= '3.9'"
+  'numpy>=1.19.3; python_version < "3.9" and sys_platform != "darwin"',
+  'numpy==1.23.5; python_version < "3.9" and sys_platform == "darwin"',
 ]
 
 [project.urls]
