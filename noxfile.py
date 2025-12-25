@@ -10,84 +10,82 @@ ROOT = Path(__file__).parent.resolve()
 _DEFAULT_TORCH_SPEC = "torch==2.2.0+cu121 --index-url https://download.pytorch.org/whl/cu121"
 
 
-def _find_win_compiler_settings_file(version: str = "2019") -> Path:
-    """
-    Search for vcvars64.bat inside Visual Studio installation directory.
-    Looks under Community, BuildTools, Enterprise, Professional.
-    """
-    assert platform.system() == "Windows"
-    vs_root = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) \
-                / "Microsoft Visual Studio" / version
 
-    candidates = [
-        "BuildTools",
-        "Community",
-        "Enterprise",
-        "Professional",
-    ]
+if platform.system() == "Windows":
+    def _get_vcvars_path(target_version: str) -> str:
+        vswhere_path = r"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+    
+        # Map friendly names to version ranges
+        version_map = {
+            "2017": "[15.0, 16.0)",
+            "2019": "[16.0, 17.0)",
+            "2022": "[17.0, 18.0)"
+        }
+        
+        range_query = version_map.get(target_version)
+        if not range_query:
+            raise ValueError(f"Unsupported version request: {target_version}")
 
-    for edition in candidates:
-        base = vs_root / edition / "VC" / "Auxiliary" / "Build"
-        bat = base / "vcvars64.bat"
-        if bat.exists():
-            print(f"Found Visual Studio environment: {bat}")
-            return bat
+        cmd = [
+            vswhere_path, 
+            "-version", range_query,  # Filter for the specific version range
+            "-products", "*", 
+            "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+            "-property", "installationPath"
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        vs_install_path = result.stdout.strip()
+        
+        # If vswhere returns multiple paths (e.g. Community and Enterprise 2019), 
+        # it returns them newline-separated. We'll take the first one.
+        if not vs_install_path:
+            raise RuntimeError(f"Visual Studio {target_version} with C++ tools was not found.")
+        
+        first_path = vs_install_path.splitlines()[0]
+        bat_path = Path(first_path) / "VC" / "Auxiliary" / "Build" / "vcvars64.bat"
+        
+        return str(bat_path)
 
-    raise FileNotFoundError(
-        f"Could not find vcvars64.bat under '{vs_root}'. "
-        "Please ensure Visual Studio Build Tools are installed."
-    )
-
-def _load_win_compiler(vs_version: str):
-    """Load VS build environment into os.environ."""
-    assert platform.system() == "Windows"
-    print(f"→ Loading Visual Studio {vs_version} environment...")
-
-    vcvars = _find_win_compiler_settings_file(version=vs_version)
-
-    if not vcvars.exists():
-        raise RuntimeError(f"vcvars64.bat not found: {vcvars}")
-    # Run vcvars and capture environment
-    cmd = f'"{vcvars}" && set'
-    print(f"Running the commands from {vcvars} to set all env variables to the build")
-    print(f"{cmd=}")
-    result = subprocess.run(["cmd.exe", "/c", cmd],
-                            capture_output=True, text=True)
-
-    # if result.returncode != 0:
-    #     raise RuntimeError("Failed running vcvars64.bat")
-
-    # Import variables into this Python environment
-    print("*"*40)
-    print(f"The results STD:")
-    print(F"{result.stdout}")
-    print("*"*40)
-    for line in result.stdout.splitlines():
-        if "=" in line:
-            key, val = line.split("=", 1)
-            print(f"setting {key} = {val}")
-            os.environ[key] = val
-
-    print("✔ Visual Studio environment loaded")
+    def _load_msvc_env(vcvars_path: str):
+        
+        # Run the batch file and then run 'set' to see all variables
+        query_cmd = f'"{vcvars_path}" && set'
+        
+        # Capture the output
+        output = subprocess.check_output(query_cmd, shell=True, text=True)
+        print(f"successsfully read {len(output)} vars for the env")
+        # Parse the output and update Python's os.environ
+        for line in output.splitlines():
+            if "=" in line:
+                key, _, value = line.partition("=")
+                os.environ[key] = value
 
 
+    def _load_win_compiler(version: str):
+        vs_path = _get_vcvars_path(target_version=version)
+        if not os.path.exists(vs_path):
+            raise RuntimeError("Failed to find valid VS path in this host!")
+        _load_msvc_env(vcvars_path=vs_path)
+
+
+    
 def _verify_cuda():
-    cuda_home = os.environ.get("CUDA_HOME") or os.environ.get("CUDA_PATH")
-    if not cuda_home:
-        raise RuntimeError("CUDA_HOME or CUDA_PATH is not set.")
+        cuda_home = os.environ.get("CUDA_HOME") or os.environ.get("CUDA_PATH")
+        if not cuda_home:
+            raise RuntimeError("CUDA_HOME or CUDA_PATH is not set.")
 
-    nvcc = Path(cuda_home) / "bin/nvcc.exe"
-    if not nvcc.exists():
-        raise RuntimeError(f"nvcc not found at: {nvcc}")
+        nvcc = Path(cuda_home) / "bin/nvcc.exe"
+        if not nvcc.exists():
+            raise RuntimeError(f"nvcc not found at: {nvcc}")
 
-    out = subprocess.check_output([str(nvcc), "--version"], text=True)
-    print(out)
+        out = subprocess.check_output([str(nvcc), "--version"], text=True)
+        print(out)
 
-    if "release 12" not in out:
-        raise RuntimeError("CUDA version 12.x required")
+        if "release 12" not in out:
+            raise RuntimeError("CUDA version 12.x required")
 
-    print("✔ CUDA verified (12.x)")
-
+        print("CUDA verified (12.x)")
 
 @nox.session(name="build-wheel", python="3.11")
 def build_wheel(session: nox.session):
